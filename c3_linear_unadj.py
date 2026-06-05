@@ -5,7 +5,7 @@ import statsmodels.formula.api as smf
 # 1. ファイル読み込み
 # =========================
 input_file = r"D:/mint/data_xlsx/merged_selected.xlsx"
-output_file = r"D:/mint/data_xlsx/simple_linear_regression_results_lowincome.xlsx"
+output_file = r"D:/mint/results/simple_linear_regression_results_lowincome_motheredu.xlsx"
 
 df = pd.read_excel(input_file)
 
@@ -19,10 +19,10 @@ print(f"読み込み列数: {len(df.columns)}")
 # =========================
 
 # low_income_baseline:
-# H4_P1が1〜4  → 2
-# H4_P1が5〜8 → 1
-# H4_P1が9〜15 → 0
-# H4_P1が欠損 → NaN
+# H4_P1が1〜4   → 2
+# H4_P1が5〜8   → 1
+# H4_P1が9〜15  → 0
+# H4_P1が欠損   → NaN
 
 if "H4_P1" not in df.columns:
     raise ValueError("H4_P1 がデータに存在しません。")
@@ -39,6 +39,15 @@ df["low_income_baseline"] = df["low_income_baseline"].astype("category")
 
 print("===== low_income_baseline の分布 =====")
 print(df["low_income_baseline"].value_counts(dropna=False))
+
+# mother_education_6grp もカテゴリ変数として扱う
+if "mother_education_6grp" in df.columns:
+    df["mother_education_6grp"] = df["mother_education_6grp"].astype("category")
+
+    print("===== mother_education_6grp の分布 =====")
+    print(df["mother_education_6grp"].value_counts(dropna=False))
+else:
+    print("mother_education_6grp はデータに存在しませんでした。")
 
 # =========================
 # 3. 変数指定
@@ -59,9 +68,11 @@ exposures_continuous = [
     "A13_P1",
 ]
 
-# low_income_baseline はカテゴリ変数
+# カテゴリ変数
+# それぞれ最も n が大きいカテゴリを基準にする
 exposures_categorical = [
     "low_income_baseline",
+    "mother_education_6grp",
 ]
 
 # =========================
@@ -108,9 +119,6 @@ def run_simple_lm(data, y, x, x_is_categorical=False, model_type_label=""):
     if y not in data.columns or x not in data.columns:
         return None
 
-    formula_x = f"C({x})" if x_is_categorical else x
-    formula = f"{y} ~ {formula_x}"
-
     use_df = data[[y, x]].dropna().copy()
 
     if len(use_df) < 3:
@@ -121,6 +129,33 @@ def run_simple_lm(data, y, x, x_is_categorical=False, model_type_label=""):
 
     if use_df[x].nunique(dropna=True) < 2:
         return None
+
+    reference_category = None
+
+    if x_is_categorical:
+        use_df[x] = use_df[x].astype("category")
+
+        category_counts = use_df[x].value_counts(dropna=True)
+
+        if category_counts.empty:
+            return None
+
+        reference_category = category_counts.idxmax()
+
+        # ★ここが重要：numpy型をPython標準型に変換する
+        if hasattr(reference_category, "item"):
+            reference_category_for_formula = reference_category.item()
+        else:
+            reference_category_for_formula = reference_category
+
+        formula_x = (
+            f"C({x}, Treatment(reference={repr(reference_category_for_formula)}))"
+        )
+
+    else:
+        formula_x = x
+
+    formula = f"{y} ~ {formula_x}"
 
     try:
         model = smf.ols(formula=formula, data=use_df).fit()
@@ -146,6 +181,7 @@ def run_simple_lm(data, y, x, x_is_categorical=False, model_type_label=""):
             "exposure": x,
             "term": term,
             "n": int(model.nobs),
+            "reference_category": reference_category,
             "beta": params[term],
             "std_error": ses[term],
             "ci_lower": conf.loc[term, 0],
@@ -183,6 +219,7 @@ for mediator in mediators:
 # 7-2. 曝露因子 → 媒介因子
 #      G●_●● ~ A13_P1
 #      G●_●● ~ low_income_baseline
+#      G●_●● ~ mother_education_6grp
 # ---------------------------------
 
 for mediator in mediators:
@@ -213,6 +250,7 @@ for mediator in mediators:
 # 7-3. 曝露因子 → アウトカム
 #      AF3 ~ A13_P1
 #      AF3 ~ low_income_baseline
+#      AF3 ~ mother_education_6grp
 # ---------------------------------
 
 for exposure in exposures_continuous:
