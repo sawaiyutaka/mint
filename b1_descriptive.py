@@ -40,6 +40,8 @@ categorical_columns = [
     "H4_P1",  # baseline income
     "mother_education_6grp",
     "father_education_6grp",
+    "AF3",
+    "AF4",
 ]
 
 # =========================
