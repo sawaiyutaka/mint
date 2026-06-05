@@ -53,10 +53,12 @@ base_covariates_continuous = [
     "WHO5_all_100_P1",
 ]
 
+"""
 base_covariates_categorical = [
     "mother_education_6grp",
     "father_education_6grp",
 ]
+"""
 
 # =========================
 # 4. 必要な列が存在するか確認
@@ -66,8 +68,8 @@ required_columns = (
     [outcome] +
     exposures +
     mediators +
-    base_covariates_continuous +
-    base_covariates_categorical
+    base_covariates_continuous  # +
+    # base_covariates_categorical
 )
 
 missing_columns = [col for col in required_columns if col not in df.columns]
@@ -83,9 +85,11 @@ mediators = [m for m in mediators if m in df.columns]
 base_covariates_continuous = [
     c for c in base_covariates_continuous if c in df.columns
 ]
+"""
 base_covariates_categorical = [
     c for c in base_covariates_categorical if c in df.columns
 ]
+"""
 
 # =========================
 # 5. 型の整理
@@ -104,7 +108,8 @@ for col in numeric_columns:
 
 categorical_columns = [
     "low_income_baseline"
-] + base_covariates_categorical
+]
+# + base_covariates_categorical
 
 for col in categorical_columns:
     if col in df.columns:
@@ -120,8 +125,8 @@ def make_term(var):
     """
     categorical_vars = [
         "low_income_baseline",
-        "mother_education_6grp",
-        "father_education_6grp",
+        # "mother_education_6grp",
+        # "father_education_6grp",
     ]
 
     if var in categorical_vars:
@@ -182,7 +187,7 @@ def run_lm(data, y, main_x, covariates, model_type_label):
             continue
 
         # 主説明変数かどうかを判定
-        if main_x in ["low_income_baseline", "mother_education_6grp", "father_education_6grp"]:
+        if main_x in ["low_income_baseline"]:  # , "mother_education_6grp", "father_education_6grp"]:
             is_main_term = term.startswith(f"C({main_x})")
         else:
             is_main_term = term == main_x
@@ -222,8 +227,8 @@ for mediator in mediators:
 
     covariates = (
         exposures +
-        base_covariates_continuous +
-        base_covariates_categorical
+        base_covariates_continuous  # +
+        # base_covariates_categorical
     )
 
     res = run_lm(
@@ -249,8 +254,8 @@ for mediator in mediators:
 
         covariates = (
             other_exposures +
-            base_covariates_continuous +
-            base_covariates_categorical
+            base_covariates_continuous  # +
+            # base_covariates_categorical
         )
 
         res = run_lm(
@@ -275,8 +280,8 @@ for exposure in exposures:
 
     covariates = (
         other_exposures +
-        base_covariates_continuous +
-        base_covariates_categorical
+        base_covariates_continuous  # +
+        # base_covariates_categorical
     )
 
     res = run_lm(
