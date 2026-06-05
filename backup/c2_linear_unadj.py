@@ -31,7 +31,8 @@ df["H4_P1"] = pd.to_numeric(df["H4_P1"], errors="coerce")
 df["low_income_baseline"] = pd.NA
 
 df.loc[df["H4_P1"].between(1, 4), "low_income_baseline"] = 1
-df.loc[df["H4_P1"].between(5, 15), "low_income_baseline"] = 0
+df.loc[df["H4_P1"].between(5, 8), "low_income_baseline"] = 0.5
+df.loc[df["H4_P1"].between(9, 15), "low_income_baseline"] = 1
 
 df["low_income_baseline"] = df["low_income_baseline"].astype("category")
 
