@@ -142,7 +142,7 @@ print(categorical_summary)
 # 5. Excelに保存
 # =========================
 
-output_file = r"D:/mint/data_xlsx/descriptive_statistics.xlsx"
+output_file = r"D:/mint/results/descriptive_statistics.xlsx"
 
 with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
     continuous_summary_rounded.to_excel(
