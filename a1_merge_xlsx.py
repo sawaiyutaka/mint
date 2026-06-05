@@ -203,26 +203,26 @@ def classify_mother_education(row):
     """
     母の最終学歴を6グループに分類する。
    スコア:
-      0 = 小学校卒
-      1 = 中学校卒
+      2 = 小学校卒
+      2 = 中学校卒
       2 = 高校卒
-      3 = 短大・専門学校卒
-      4 = 4年制大学卒
-      5 = 大学院・6年制大学卒
+      1 = 短大・専門学校卒
+      0 = 4年制大学卒
+      0 = 大学院・6年制大学卒
 
     """
 
     # 5: 大学院・6年制大学卒
     if is_checked(row.get("I12_7_P1")):
-        return 5
+        return 0
 
     # 4: 大卒
     if is_checked(row.get("I12_6_P1")):
-        return 4
+        return 0
 
     # 3: 短大・専門学校卒
     if is_checked(row.get("I12_4_P1")) or is_checked(row.get("I12_5_P1")):
-        return 3
+        return 1
 
     # 2: 高卒
     if is_checked(row.get("I12_3_P1")):
@@ -230,11 +230,11 @@ def classify_mother_education(row):
 
     # 1: 中卒
     if is_checked(row.get("I12_2_P1")):
-        return 1
+        return 2
 
     # 小学校卒業
     if is_checked(row.get("I12_1_P1")):
-        return 0
+        return 2
 
     # どれにも該当しない場合
     return pd.NA
@@ -250,26 +250,26 @@ def classify_father_education(row):
     """
     父の最終学歴を6グループに分類する。
    スコア:
-      0 = 小学校卒
-      1 = 中学校卒
+      2 = 小学校卒
+      2 = 中学校卒
       2 = 高校卒
-      3 = 短大・専門学校卒
-      4 = 4年制大学卒
-      5 = 大学院・6年制大学卒
+      1 = 短大・専門学校卒
+      0 = 4年制大学卒
+      0 = 大学院・6年制大学卒
 
     """
 
     # 5: 大学院・6年制大学卒
     if is_checked(row.get("I22_7_P1")):
-        return 5
+        return 0
 
     # 4: 大卒
     if is_checked(row.get("I22_6_P1")):
-        return 4
+        return 0
 
     # 3: 短大・専門学校卒
     if is_checked(row.get("I22_4_P1")) or is_checked(row.get("I22_5_P1")):
-        return 3
+        return 1
 
     # 2: 高卒
     if is_checked(row.get("I22_3_P1")):
@@ -277,17 +277,17 @@ def classify_father_education(row):
 
     # 1: 中卒
     if is_checked(row.get("I22_2_P1")):
-        return 1
+        return 2
 
     # 小学校卒業
     if is_checked(row.get("I22_1_P1")):
-        return 0
+        return 2
 
     # どれにも該当しない場合
     return pd.NA
 
 
-merged["father_education_6grp"] = merged.apply(classify_mother_education, axis=1)
+merged["father_education_6grp"] = merged.apply(classify_father_education, axis=1)
 
 print("===== 父の最終学歴 6分類 =====")
 print(merged["father_education_6grp"].value_counts(dropna=False))
