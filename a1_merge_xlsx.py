@@ -42,11 +42,16 @@ target_columns = (
     [f"I11_{i}_P1" for i in range(1, 8)] +
     [f"I12_{i}_P1" for i in range(1, 8)] +
     [f"I21_{i}_P1" for i in range(1, 8)] +
+
+    [
+        "mother_education_6grp",
+    ] +
+
     [f"I22_{i}_P1" for i in range(1, 8)] +
     [f"I23_{i}_P1" for i in range(1, 8)] +
 
     [
-        "mother_education_6grp",
+        "father_education_6grp",
         "AF3",
         "AF4",
     ]
