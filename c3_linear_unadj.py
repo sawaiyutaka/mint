@@ -5,7 +5,7 @@ import statsmodels.formula.api as smf
 # 1. ファイル読み込み
 # =========================
 input_file = r"D:/mint/data_xlsx/merged_selected.xlsx"
-output_file = r"D:/mint/results/simple_linear_regression_results_lowincome_motheredu.xlsx"
+output_file = r"D:/mint/results/simple_linear_regression_results_lowincome_motheredu_reversed.xlsx"
 
 df = pd.read_excel(input_file)
 
@@ -110,6 +110,34 @@ for col in numeric_columns:
 for col in exposures_categorical:
     if col in df.columns:
         df[col] = df[col].astype("category")
+
+# =========================
+# 5-1. reverse score の作成
+# =========================
+# 解釈しやすくするため、
+# ポジティブな要素を 0 からマイナスして使用する。
+#
+# G3_12m, G3_18m: 経済的ゆとり
+# A13_P1: 母親の年齢
+#
+# 例:
+#   元の G3_12m が 5 の場合 → -5
+#   元の A13_P1 が 30 の場合 → -30
+#
+# 以後の回帰では、元の列名のまま reverse 後の値を使う。
+
+reverse_score_vars = [
+    "G3_12m",
+    "G3_18m",
+    "A13_P1",
+]
+
+for col in reverse_score_vars:
+    if col in df.columns:
+        df[col] = 0 - df[col]
+        print(f"{col} を reverse score に変換しました: 0 - {col}")
+    else:
+        print(f"{col} はデータに存在しないため、reverse score 変換をスキップしました。")
 
 # =========================
 # 6. 単回帰を実行する関数
