@@ -340,29 +340,45 @@ for exposure in exposures:
 # ---------------------------------
 # 8-3. 媒介因子 → アウトカム
 #
-# AF3 ~ G3_12m
-#       + 全曝露因子
+# AF3 ~ G3_12m または G3_18m
+#       + 曝露因子のうち1つだけ除外
 #       + G3_P1
 #       + WHO5_all_100_P1
 #
-# AF3 ~ G3_18m も同様
+# 以下の3パターンを実行:
+#   1. A13_P1 だけを共変量から外す
+#   2. mother_education_6grp だけを共変量から外す
+#   3. low_income_baseline だけを共変量から外す
 # ---------------------------------
+
+exclude_exposure_patterns = [
+    "A13_P1",
+    "mother_education_6grp",
+    "low_income_baseline",
+]
 
 for mediator in mediators:
 
-    covariates = exposures + base_covariates
+    for excluded_exposure in exclude_exposure_patterns:
 
-    res = run_adjusted_lm(
-        data=df,
-        y=outcome,
-        main_x=mediator,
-        covariates=covariates,
-        categorical_vars=categorical_vars,
-        model_type_label="adjusted_mediator_to_outcome"
-    )
+        covariates = (
+            [x for x in exposures if x != excluded_exposure] +
+            base_covariates
+        )
 
-    if res is not None:
-        results.append(res)
+        res = run_adjusted_lm(
+            data=df,
+            y=outcome,
+            main_x=mediator,
+            covariates=covariates,
+            categorical_vars=categorical_vars,
+            model_type_label=f"adjusted_mediator_to_outcome_exclude_{excluded_exposure}"
+        )
+
+        if res is not None:
+            # どの曝露因子を共変量から外したモデルかを記録
+            res["excluded_exposure_from_covariates"] = excluded_exposure
+            results.append(res)
 
 # =========================
 # 9. 結果をまとめる
