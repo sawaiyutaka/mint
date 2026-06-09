@@ -6,7 +6,7 @@ import statsmodels.formula.api as smf
 # 1. ファイル読み込み
 # =========================
 input_file = r"D:/mint/data_xlsx/merged_selected.xlsx"
-output_file = r"D:/mint/results/adjusted_linear_regression_results_lowincome_motheredu_reversed.xlsx"
+output_file = r"D:/mint/results/adjusted_linear_regression_results_reversed.xlsx"
 
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
@@ -70,7 +70,7 @@ mediators = [
 
 base_covariates = [
     "G3_P1",
-    "WHO5_all_100_P1",
+    # "WHO5_all_100_P1",
 ]
 
 categorical_vars = [
@@ -81,7 +81,7 @@ categorical_vars = [
 continuous_vars = [
     "A13_P1",
     "G3_P1",
-    "WHO5_all_100_P1",
+    # "WHO5_all_100_P1",
     "G3_12m",
     "G3_18m",
     "AF3",
@@ -133,13 +133,13 @@ for col in categorical_vars:
 # A13_P1:
 #   母親の年齢が高い → 低い方向に反転
 #
-# WHO5_all_100_P1:
-#   ベースラインWHO5が高い → 低い方向に反転
+# # WHO5_all_100_P1:
+#   # ベースラインWHO5が高い → 低い方向に反転
 #
 # 例:
 #   元の G3_12m が 5 の場合 → -5
 #   元の A13_P1 が 30 の場合 → -30
-#   元の WHO5_all_100_P1 が 80 の場合 → -80
+#   # 元の WHO5_all_100_P1 が 80 の場合 → -80
 #
 # 以後の回帰では、元の列名のまま reverse 後の値を使う。
 
@@ -148,7 +148,7 @@ reverse_score_vars = [
     "G3_12m",
     "G3_18m",
     "A13_P1",
-    "WHO5_all_100_P1",
+    # "WHO5_all_100_P1",
 ]
 
 for col in reverse_score_vars:
@@ -321,7 +321,7 @@ results = []
 # G3_12m ~ 選択した曝露因子
 #          + 選ばなかった曝露因子
 #          + G3_P1
-#          + WHO5_all_100_P1
+#          # + WHO5_all_100_P1
 #
 # G3_18m も同様
 # ---------------------------------
@@ -352,7 +352,7 @@ for mediator in mediators:
 # AF3 ~ 選択した曝露因子
 #       + 選ばなかった曝露因子
 #       + G3_P1
-#       + WHO5_all_100_P1
+#       # + WHO5_all_100_P1
 # ---------------------------------
 
 for exposure in exposures:
@@ -380,7 +380,7 @@ for exposure in exposures:
 # AF3 ~ G3_12m または G3_18m
 #       + 曝露因子のうち1つだけ除外
 #       + G3_P1
-#       + WHO5_all_100_P1
+#       # + WHO5_all_100_P1
 #
 # 以下の3パターンを実行:
 #   1. A13_P1 だけを共変量から外す
