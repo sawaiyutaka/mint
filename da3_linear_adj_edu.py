@@ -6,7 +6,7 @@ import statsmodels.formula.api as smf
 # 1. ファイル設定
 # =========================
 input_file = r"D:/mint/data_xlsx/merged_selected.xlsx"
-output_file = r"D:/mint/results/linear_regression_screen_time.xlsx"
+output_file = r"D:/mint/results/linear_regression_edu.xlsx"
 
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
@@ -61,7 +61,7 @@ for col in [exposure, covariate]:
 # =========================
 analysis_df = df[required_columns].dropna().copy()
 
-formula = f"{outcome} ~ {exposure} + C({education}) + {covariate}"
+formula = f"{outcome} ~ {exposure} + C({education})"  # + {covariate}"
 
 model = smf.ols(formula=formula, data=analysis_df).fit()
 

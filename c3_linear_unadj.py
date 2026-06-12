@@ -4,8 +4,8 @@ import statsmodels.formula.api as smf
 # =========================
 # 1. ファイル読み込み
 # =========================
-input_file = r"D:/mint/data_xlsx/merged_selected.xlsx"
-output_file = r"D:/mint/results/simple_linear_regression_results_lowincome_motheredu_reversed.xlsx"
+input_file = r"D:/mint/data_xlsx/merged_selected_age_corrected.xlsx"
+output_file = r"D:/mint/results/linear_regression_unadj.xlsx"
 
 df = pd.read_excel(input_file)
 
@@ -65,7 +65,7 @@ mediators = [
 
 # A13_P1 は連続変数
 exposures_continuous = [
-    "A13_P1",
+    "age_corrected",
 ]
 
 # カテゴリ変数
@@ -129,7 +129,8 @@ for col in exposures_categorical:
 reverse_score_vars = [
     "G3_12m",
     "G3_18m",
-    "A13_P1",
+    "age_corrected",
+    # "A13_P1",
 ]
 
 for col in reverse_score_vars:

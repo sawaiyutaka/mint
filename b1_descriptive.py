@@ -3,7 +3,7 @@ import pandas as pd
 # =========================
 # 1. ファイル読み込み
 # =========================
-input_file = r"D:/mint/data_xlsx/merged_selected.xlsx"
+input_file = r"D:/mint/data_xlsx/merged_selected_age_corrected.xlsx"
 
 df = pd.read_excel(input_file)
 
@@ -22,6 +22,7 @@ timepoints = ["P1", "P2", "1m", "6m", "12m", "18m"]
 continuous_columns = (
     [
         "A13_P1",  # baseline age
+        "age_corrected"
     ] +
 
     [f"G{i}_{tp}" for tp in timepoints for i in range(1, 6)] +

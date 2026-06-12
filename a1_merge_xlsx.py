@@ -36,6 +36,7 @@ target_columns = (
         "EPDS_12m",
         "EPDS_18m",
         "A13_P1",
+        "age_corrected",
         "H4_P1",
     ] +
 
@@ -306,7 +307,7 @@ result = merged[existing_columns]
 # =========================
 # 10. 保存
 # =========================
-result.to_excel(r"D:/mint/data_xlsx/merged_selected.xlsx", index=False)
+result.to_excel(r"D:/mint/data_xlsx/merged_selected_age_corrected.xlsx", index=False)
 
 print("完了: merged_selected.xlsx を作成しました")
 print(f"出力行数: {len(result)}")
