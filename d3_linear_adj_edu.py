@@ -22,66 +22,57 @@ print(f"読み込み列数: {len(df.columns)}")
 # =========================
 # 3. 使用する変数
 # =========================
-outcome = "AF3"  # 24か月のスクリーンタイム
+outcome = "AF3"                    # 24か月のスクリーンタイム
+exposure = "G3_18m"                # 経済的ゆとり
+education = "mother_education_6grp" # 母親学歴
+covariate = "H4_P1"                # 母親年齢
 
-exposures = [
-    "mother_education_6grp",  # 母親学歴
-    "G3_12m",                 # 経済的ゆとり
+required_columns = [
+    outcome,
+    exposure,
+    education,
+    covariate,
 ]
 
-covariates = [
-    "H4_P1",                  # 母親年齢
-]
-
-categorical_vars = [
-    "mother_education_6grp",
-]
-
-continuous_vars = [
-    "AF3",
-    "G3_12m",
-    "H4_P1",
-]
-
-all_vars = [outcome] + exposures + covariates
+missing_columns = [col for col in required_columns if col not in df.columns]
+if missing_columns:
+    raise ValueError(f"以下の列がデータに存在しません: {missing_columns}")
 
 # =========================
-# 4. 変数の存在確認
+# 4. 型の整理
 # =========================
-missing_cols = [col for col in all_vars if col not in df.columns]
-
-if missing_cols:
-    raise ValueError(f"以下の列がデータに存在しません: {missing_cols}")
-
-# =========================
-# 5. 型の整理
-# =========================
-for col in continuous_vars:
+for col in [outcome, exposure, covariate]:
     df[col] = pd.to_numeric(df[col], errors="coerce")
 
-for col in categorical_vars:
-    df[col] = df[col].astype("category")
+df[education] = df[education].astype("category")
 
 # =========================
-# 6. 解析用データ作成
+# 5. reverse score
 # =========================
-analysis_df = df[all_vars].dropna().copy()
+# G3_12m: 経済的ゆとりがないほど大きい値にする
+# H4_P1: 母親年齢が若いほど大きい値にする
 
-print(f"解析対象者数: {len(analysis_df)}")
+for col in [exposure, covariate]:
+    df[col] = 0 - df[col]
+    print(f"{col} を reverse score に変換しました: 0 - {col}")
 
 # =========================
-# 7. 回帰分析
+# 6. 回帰分析
 # =========================
-# AF3 ~ 母親学歴 + 経済的ゆとり + 母親年齢
+analysis_df = df[required_columns].dropna().copy()
 
-formula = "AF3 ~ C(mother_education_6grp) + G3_12m + H4_P1"
+formula = f"{outcome} ~ {exposure} + C({education}) + {covariate}"
 
 model = smf.ols(formula=formula, data=analysis_df).fit()
 
+print("===== 回帰式 =====")
+print(formula)
+
+print("===== 回帰結果 =====")
 print(model.summary())
 
 # =========================
-# 8. 結果を表に整理
+# 7. 結果を表にまとめる
 # =========================
 conf = model.conf_int()
 
@@ -94,15 +85,14 @@ results = pd.DataFrame({
     "p_value": model.pvalues.values,
 })
 
+results = results[results["term"] != "Intercept"].copy()
+
 results["n"] = int(model.nobs)
 results["r_squared"] = model.rsquared
 results["adj_r_squared"] = model.rsquared_adj
 results["formula"] = formula
 
-# Interceptを除外
-results = results[results["term"] != "Intercept"].copy()
-
-# 小数点以下4桁に丸める
+# 小数第4位で丸める
 round_cols = [
     "beta",
     "std_error",
@@ -113,16 +103,19 @@ round_cols = [
     "adj_r_squared",
 ]
 
-for col in round_cols:
-    results[col] = results[col].round(4)
+results[round_cols] = results[round_cols].round(4)
 
-print("===== 回帰分析結果 =====")
+print("===== 保存用の結果 =====")
 print(results)
 
 # =========================
-# 9. Excelに保存
+# 8. Excelに保存
 # =========================
 with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
-    results.to_excel(writer, sheet_name="regression_results", index=False)
+    results.to_excel(
+        writer,
+        sheet_name="regression_results",
+        index=False
+    )
 
 print(f"完了: {output_file} を作成しました")
