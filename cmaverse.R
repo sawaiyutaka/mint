@@ -90,7 +90,10 @@ dat <- df %>%
     AF3 = as.numeric(AF3),
     G3_P1 = as.numeric(G3_P1),
     mother_education_6grp = factor(mother_education_6grp),
-    low_income_baseline = factor(low_income_baseline)
+    low_income_baseline = factor(
+      low_income_baseline,
+      levels = c(0, 1, 2)
+    )
   ) %>%
   na.omit() %>%
   mutate(
@@ -107,9 +110,9 @@ cat("Complete case N:", nrow(dat), "\n")
 # Analysis 1: younger maternal age
 # ============================================================
 
-base <- quantile(dat$younger_maternal_age, 0.25, na.rm = TRUE)
-change <- quantile(dat$younger_maternal_age, 0.75, na.rm = TRUE)
-medianm <- median(dat$financial_difficulty_18m, na.rm = TRUE)
+age_base <- as.numeric(median(dat$younger_maternal_age, na.rm = TRUE))
+age_change <- age_base + 1
+medianm <- as.numeric(median(dat$financial_difficulty_18m, na.rm = TRUE))
 
 set.seed(11111)
 
@@ -121,14 +124,13 @@ re_age <- cmest(
   mediator = c("financial_difficulty_18m"), 
   basec = c(
     "financial_difficulty_pregnancy",
-    "mother_education_6grp",
     "low_income_baseline"
   ),
   EMint = TRUE,
   mreg = list("linear"), 
   yreg = "linear",
-  astar = base,
-  a = change,
+  astar = age_base,
+  a = age_change,
   mval = list(medianm), 
   estimation = "para",
   inference = "delta"
@@ -157,8 +159,7 @@ re_edu <- cmest(
   mediator = c("financial_difficulty_18m"), 
   basec = c(
     "financial_difficulty_pregnancy",
-    "younger_maternal_age",
-    "low_income_baseline"
+    "younger_maternal_age"
   ),
   EMint = TRUE,
   mreg = list("linear"), 
@@ -193,7 +194,6 @@ re_income <- cmest(
   mediator = c("financial_difficulty_18m"), 
   basec = c(
     "financial_difficulty_pregnancy",
-    "mother_education_6grp",
     "younger_maternal_age"
   ),
   EMint = TRUE,
@@ -249,8 +249,8 @@ res_age <- extract_cmest_results(
   cmest_object = re_age,
   analysis_name = "Analysis 1: Maternal age",
   exposure_label = "younger_maternal_age",
-  astar_label = "-32, equivalent to maternal age 32 years",
-  a_label = "-24, equivalent to maternal age 24 years"
+  astar_label = "median maternal age",
+  a_label = "1 year younger than median maternal age"
 )
 
 # Analysis 2: maternal education
