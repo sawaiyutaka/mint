@@ -5,7 +5,7 @@ import statsmodels.formula.api as smf
 # =========================
 # 1. ファイル設定
 # =========================
-input_file = r"D:/mint/data_xlsx/merged_selected.xlsx"
+input_file = r"D:/mint/data_xlsx/merged_selected_age_corrected.xlsx"
 output_file = r"D:/mint/results/linear_regression_edu.xlsx"
 
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -22,10 +22,10 @@ print(f"読み込み列数: {len(df.columns)}")
 # =========================
 # 3. 使用する変数
 # =========================
-outcome = "AF3"                    # 24か月のスクリーンタイム
-exposure = "G3_18m"                # 経済的ゆとり
+outcome = "AF3"                     # 24か月のスクリーンタイム
+exposure = "G3_18m"                 # 経済的ゆとり
 education = "mother_education_6grp" # 母親学歴
-covariate = "H4_P1"                # 母親年齢
+covariate = "age_corrected"         # 母親年齢
 
 required_columns = [
     outcome,
@@ -61,7 +61,7 @@ for col in [exposure, covariate]:
 # =========================
 analysis_df = df[required_columns].dropna().copy()
 
-formula = f"{outcome} ~ {exposure} + C({education})"  # + {covariate}"
+formula = f"{outcome} ~ {exposure} + C({education}) + {covariate}"
 
 model = smf.ols(formula=formula, data=analysis_df).fit()
 
