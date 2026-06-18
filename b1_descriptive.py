@@ -26,6 +26,7 @@ continuous_columns = (
     ] +
 
     [f"G{i}_{tp}" for tp in timepoints for i in range(1, 6)] +
+    [f"G{i}" for i in range(1, 6)] +
 
     [f"WHO5_all_100_{tp}" for tp in timepoints] +
 

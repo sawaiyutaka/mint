@@ -23,6 +23,7 @@ target_columns = (
     [f"G{i}_6m" for i in range(1, 6)] +
     [f"G{i}_12m" for i in range(1, 6)] +
     [f"G{i}_18m" for i in range(1, 6)] +
+    [f"G{i}" for i in range(1, 6)] +
 
     [
         "WHO5_all_100_P1",

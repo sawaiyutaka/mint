@@ -23,7 +23,7 @@ print(f"読み込み列数: {len(df.columns)}")
 # 3. 使用する変数
 # =========================
 outcome = "AF3"                     # 24か月のスクリーンタイム
-exposure = "G3_18m"                 # 経済的ゆとり
+exposure = "G3"                 # 経済的ゆとり
 education = "mother_education_6grp" # 母親学歴
 covariate = "age_corrected"         # 母親年齢
 

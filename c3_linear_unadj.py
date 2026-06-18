@@ -55,10 +55,10 @@ else:
 
 outcome = "AF3"
 
-timepoints = ["P1", "P2", "1m", "6m", "12m", "18m"]
+timepoints = ["_P1", "_P2", "_1m", "_6m", "_12m", "_18m", ""]
 
 mediators = [
-    f"G{i}_{tp}"
+    f"G{i}{tp}"
     for tp in timepoints
     for i in range(1, 6)
 ]
@@ -127,6 +127,7 @@ for col in exposures_categorical:
 # 以後の回帰では、元の列名のまま reverse 後の値を使う。
 
 reverse_score_vars = [
+    "G3",
     "G3_12m",
     "G3_18m",
     "age_corrected",
