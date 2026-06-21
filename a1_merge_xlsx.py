@@ -56,6 +56,10 @@ target_columns = (
         "father_education_6grp",
         "AF3",
         "AF4",
+        "AF1",
+        "AF2",
+        "AF5",
+        "AF6",
     ]
 )
 
