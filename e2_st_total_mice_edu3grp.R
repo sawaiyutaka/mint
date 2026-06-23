@@ -2,14 +2,29 @@
 # Multiple imputation using random forest + linear regression
 # Outcome: total 24-month screen time
 #          calculated from AF1-AF6
-# Exposure: perceived fulfilment of financial needs at 18 months
+#
+# Exposure: maternal education, dummy-coded
+#
+# mother_education_6grp:
+#   Already coded as 0, 1, 2
+#
+# Dummy variables:
+#   education_group1 = 1 if mother_education_6grp == 1, otherwise 0
+#   education_group2 = 1 if mother_education_6grp == 2, otherwise 0
+#
+# Reference:
+#   mother_education_6grp == 0
 #
 # Models:
-#   1. Unadjusted: childscreen24M ~ G3_18m
-#   2. Adjusted:   childscreen24M ~ G3_18m + age_corrected + mother_education_6grp
+#   1. Unadjusted:
+#      childscreen24M ~ education_group1 + education_group2
+#
+#   2. Adjusted:
+#      childscreen24M ~ education_group1 + education_group2 + age_corrected
 #
 # Imputation:
 #   Missing values are imputed after creating childscreen24M.
+#   Education dummy variables are created after imputation.
 # ============================================================
 
 # install.packages(c("readxl", "mice", "dplyr", "openxlsx", "randomForest"))
@@ -25,25 +40,33 @@ library(randomForest)
 # =========================
 
 input_file  <- "D:/mint/data_xlsx/merged_selected_age_corrected.xlsx"
-output_file <- "D:/mint/results/linear_regression_MI_random_forest_G3_18m_childscreen24M.xlsx"
+output_file <- "D:/mint/results/linear_regression_MI_random_forest_mother_education_dummy_childscreen24M.xlsx"
 
 set.seed(12345)
 
-m_imp <- 20  # test:2
+m_imp <- 20
 ntree_rf <- 100
 
 # =========================
 # 2. Variable settings
 # =========================
 
-af_vars   <- c("AF1", "AF2", "AF3", "AF4", "AF5", "AF6")
+af_vars <- c("AF1", "AF2", "AF3", "AF4", "AF5", "AF6")
 
-outcome   <- "childscreen24M"
-exposure  <- "G3_18m"
-age_cov   <- "age_corrected"
+outcome <- "childscreen24M"
+
 education <- "mother_education_6grp"
 
-required_columns <- c(af_vars, exposure, age_cov, education)
+education_group1_dummy <- "education_group1"
+education_group2_dummy <- "education_group2"
+
+age_cov <- "age_corrected"
+
+required_columns <- c(
+  af_vars,
+  education,
+  age_cov
+)
 
 # =========================
 # 3. Read data
@@ -67,7 +90,31 @@ if (length(missing_columns) > 0) {
 }
 
 # =========================
-# 4. Create outcome variable before imputation
+# 4. Check maternal education variable
+# =========================
+
+df[[education]] <- as.numeric(df[[education]])
+
+education_summary_before <- data.frame(
+  mother_education_6grp = c(0, 1, 2, NA),
+  label = c(
+    "Education group 0, reference",
+    "Education group 1",
+    "Education group 2",
+    "Missing"
+  ),
+  n = c(
+    sum(df[[education]] == 0, na.rm = TRUE),
+    sum(df[[education]] == 1, na.rm = TRUE),
+    sum(df[[education]] == 2, na.rm = TRUE),
+    sum(is.na(df[[education]]))
+  )
+)
+
+print(education_summary_before)
+
+# =========================
+# 5. Create outcome variable before imputation
 # =========================
 
 to_hours <- function(x) {
@@ -81,15 +128,14 @@ to_hours <- function(x) {
                                                    ifelse(x == 7, 7, NA))))))))
 }
 
-# Convert AF1-AF6 to numeric
 df[af_vars] <- lapply(df[af_vars], function(x) as.numeric(x))
 
-df$AF1_h <- to_hours(df$AF1)  # TV, weekday
-df$AF2_h <- to_hours(df$AF2)  # TV, weekend
-df$AF3_h <- to_hours(df$AF3)  # smartphone/tablet video, weekday
-df$AF4_h <- to_hours(df$AF4)  # smartphone/tablet video, weekend
-df$AF5_h <- to_hours(df$AF5)  # games, weekday
-df$AF6_h <- to_hours(df$AF6)  # games, weekend
+df$AF1_h <- to_hours(df$AF1)
+df$AF2_h <- to_hours(df$AF2)
+df$AF3_h <- to_hours(df$AF3)
+df$AF4_h <- to_hours(df$AF4)
+df$AF5_h <- to_hours(df$AF5)
+df$AF6_h <- to_hours(df$AF6)
 
 df[[outcome]] <- ifelse(
   is.na(df$AF1) | is.na(df$AF2) | is.na(df$AF3) |
@@ -104,7 +150,7 @@ df[[outcome]] <- ifelse(
 cat("Outcome variable created:", outcome, "\n")
 
 # =========================
-# Export childscreen24M with ID for checking
+# 6. Export check file
 # =========================
 
 id_var <- "users_id"
@@ -113,24 +159,27 @@ if (!id_var %in% names(df)) {
   stop("ID variable is not found in the dataset: ", id_var)
 }
 
-outcome_check_file <- "D:/mint/results/childscreen24M_by_ID.xlsx"
+check_file <- "D:/mint/results/childscreen24M_mother_education_dummy_check_by_ID.xlsx"
 
-outcome_check <- df[, c(id_var, "AF1", "AF2", "AF3", "AF4", "AF5", "AF6",
-                        "AF1_h", "AF2_h", "AF3_h", "AF4_h", "AF5_h", "AF6_h",
-                        outcome)]
+check_data <- df[, c(
+  id_var,
+  education,
+  "AF1", "AF2", "AF3", "AF4", "AF5", "AF6",
+  "AF1_h", "AF2_h", "AF3_h", "AF4_h", "AF5_h", "AF6_h",
+  outcome
+)]
 
 wb_check <- createWorkbook()
+addWorksheet(wb_check, "check_by_ID")
+writeData(wb_check, "check_by_ID", check_data)
+saveWorkbook(wb_check, check_file, overwrite = TRUE)
 
-addWorksheet(wb_check, "childscreen24M_by_ID")
-writeData(wb_check, "childscreen24M_by_ID", outcome_check)
+cat("Check file saved:", check_file, "\n")
 
-saveWorkbook(wb_check, outcome_check_file, overwrite = TRUE)
+# =========================
+# 7. Mean and SD before imputation
+# =========================
 
-cat("Outcome check file saved:", outcome_check_file, "\n")
-
-
-
-# Mean and SD of childscreen24M before imputation
 childscreen24M_mean <- mean(df[[outcome]], na.rm = TRUE)
 childscreen24M_sd   <- sd(df[[outcome]], na.rm = TRUE)
 childscreen24M_n    <- sum(!is.na(df[[outcome]]))
@@ -140,99 +189,46 @@ cat("SD of", outcome, "before imputation:", round(childscreen24M_sd, 3), "\n")
 cat("N observed for", outcome, "before imputation:", childscreen24M_n, "\n")
 
 # =========================
-# Histogram with overflow category: 8 hours or more
+# 8. Keep variables used in imputation and analysis
 # =========================
 
-hist_file <- "D:/mint/results/hist_childscreen24M_overflow8.png"
-
-# For plotting only: values >= 8 are set to 8
-df$childscreen24M_hist8 <- ifelse(
-  is.na(df[[outcome]]),
-  NA,
-  pmin(df[[outcome]], 8)
+analysis_columns <- c(
+  outcome,
+  education,
+  age_cov
 )
-
-png(
-  filename = hist_file,
-  width = 1600,
-  height = 1200,
-  res = 200
-)
-
-hist(
-  df$childscreen24M_hist8,
-  breaks = seq(0, 8, by = 1),
-  right = FALSE,
-  main = "Distribution of childscreen24M",
-  xlab = "Average daily screen time at 24 months, hours/day",
-  ylab = "Frequency",
-  xaxt = "n"
-)
-
-axis(
-  side = 1,
-  at = 0:8,
-  labels = c("0", "1", "2", "3", "4", "5", "6", "7", "8+")
-)
-
-dev.off()
-
-cat("Histogram with overflow category saved:", hist_file, "\n")
-
-# =========================
-# 5. Keep variables used in imputation and analysis
-# =========================
-
-analysis_columns <- c(outcome, exposure, age_cov, education)
 
 dat <- df[, analysis_columns]
 
 # =========================
-# 6. Type conversion
+# 9. Type conversion
 # =========================
 
-dat[[outcome]]  <- as.numeric(dat[[outcome]])
-dat[[exposure]] <- as.numeric(dat[[exposure]])
-dat[[age_cov]]  <- as.numeric(dat[[age_cov]])
+dat[[outcome]] <- as.numeric(dat[[outcome]])
 
-dat[[education]] <- as.factor(dat[[education]])
+dat[[education]] <- factor(
+  dat[[education]],
+  levels = c(0, 1, 2),
+  labels = c("group0", "group1", "group2")
+)
+
+dat[[age_cov]] <- as.numeric(dat[[age_cov]])
 
 # =========================
-# 7. Reverse score
+# 10. Reverse score for age
 # =========================
-# G3_18m:
-#   Higher value = less perceived fulfilment of financial needs
-#
 # age_corrected:
 #   Higher value = younger maternal age
 
-dat[[exposure]] <- 0 - dat[[exposure]]
-dat[[age_cov]]  <- 0 - dat[[age_cov]]
+dat[[age_cov]] <- 0 - dat[[age_cov]]
 
-cat(exposure, "was reverse-scored: 0 -", exposure, "\n")
 cat(age_cov, "was reverse-scored: 0 -", age_cov, "\n")
 
 # Remove rows in which all analysis variables are missing
 dat <- dat[rowSums(!is.na(dat)) > 0, ]
 
 # =========================
-# 8. Reference category for education
-# =========================
-# Use the most frequent observed category as the reference category.
-
-edu_tab <- table(dat[[education]], useNA = "no")
-
-if (length(edu_tab) > 0) {
-  edu_ref <- names(sort(edu_tab, decreasing = TRUE))[1]
-  dat[[education]] <- relevel(dat[[education]], ref = edu_ref)
-} else {
-  edu_ref <- NA
-}
-
-cat("Reference category for", education, ":", edu_ref, "\n")
-
-# =========================
-# 9. Missing data summary
+# 11. Missing data summary
 # =========================
 
 missing_summary <- data.frame(
@@ -244,7 +240,7 @@ missing_summary <- data.frame(
 print(missing_summary)
 
 # =========================
-# 10. Multiple imputation using random forest
+# 12. Multiple imputation using random forest
 # =========================
 
 ini <- mice(dat, maxit = 0, printFlag = FALSE)
@@ -275,40 +271,58 @@ imp <- mice(
 )
 
 # =========================
-# 11. Regression models
+# 13. Linear regression models
 # =========================
 
-formula_unadj_text <- "childscreen24M ~ G3_18m"
-formula_adj_text   <- "childscreen24M ~ G3_18m + age_corrected + mother_education_6grp"
+fit_linear_education_dummy <- function(imp) {
+  
+  completed_list <- complete(imp, action = "all")
+  
+  fit_unadj_list <- vector("list", length(completed_list))
+  fit_adj_list   <- vector("list", length(completed_list))
+  
+  for (i in seq_along(completed_list)) {
+    
+    d <- completed_list[[i]]
+    
+    d[[education]] <- factor(
+      d[[education]],
+      levels = c("group0", "group1", "group2")
+    )
+    
+    d[[education_group1_dummy]] <- ifelse(d[[education]] == "group1", 1, 0)
+    d[[education_group2_dummy]] <- ifelse(d[[education]] == "group2", 1, 0)
+    
+    fit_unadj_list[[i]] <- lm(
+      childscreen24M ~ education_group1 + education_group2,
+      data = d
+    )
+    
+    fit_adj_list[[i]] <- lm(
+      childscreen24M ~ education_group1 + education_group2 + age_corrected,
+      data = d
+    )
+  }
+  
+  list(
+    unadjusted = as.mira(fit_unadj_list),
+    adjusted = as.mira(fit_adj_list)
+  )
+}
 
-cat("Unadjusted model:\n")
-cat(formula_unadj_text, "\n")
+fits <- fit_linear_education_dummy(imp)
 
-cat("Adjusted model:\n")
-cat(formula_adj_text, "\n")
+pool_unadj <- pool(fits$unadjusted)
+pool_adj   <- pool(fits$adjusted)
 
-fit_unadj <- with(
-  imp,
-  lm(childscreen24M ~ G3_18m)
-)
-
-fit_adj <- with(
-  imp,
-  lm(childscreen24M ~ G3_18m + age_corrected + mother_education_6grp)
-)
-
-# =========================
-# 12. Pool estimates using Rubin's rule
-# =========================
-
-pool_unadj <- pool(fit_unadj)
-pool_adj   <- pool(fit_adj)
+formula_unadj_text <- "childscreen24M ~ education_group1 + education_group2"
+formula_adj_text   <- "childscreen24M ~ education_group1 + education_group2 + age_corrected"
 
 summary(pool_unadj, conf.int = TRUE, conf.level = 0.95)
 summary(pool_adj, conf.int = TRUE, conf.level = 0.95)
 
 # =========================
-# 13. Function to format pooled results
+# 14. Function to format pooled results
 # =========================
 
 format_pooled_results <- function(pool_object, model_label, formula_text, n_analysis, m_imp) {
@@ -359,7 +373,7 @@ results_adj <- format_pooled_results(
 all_results <- bind_rows(results_unadj, results_adj)
 
 # =========================
-# 14. Rounding
+# 15. Rounding
 # =========================
 
 round_cols <- c(
@@ -379,7 +393,7 @@ results_adj[round_cols] <- lapply(results_adj[round_cols], function(x) round(x, 
 missing_summary$prop_missing <- round(missing_summary$prop_missing, 4)
 
 # =========================
-# 15. Save to Excel
+# 16. Save to Excel
 # =========================
 
 wb <- createWorkbook()
@@ -393,6 +407,9 @@ writeData(wb, "unadjusted", results_unadj)
 addWorksheet(wb, "adjusted")
 writeData(wb, "adjusted", results_adj)
 
+addWorksheet(wb, "education_summary_before")
+writeData(wb, "education_summary_before", education_summary_before)
+
 addWorksheet(wb, "missing_summary")
 writeData(wb, "missing_summary", missing_summary)
 
@@ -405,9 +422,10 @@ imputation_settings <- data.frame(
     "outcome",
     "outcome_definition",
     "exposure",
+    "exposure_definition",
+    "reference_category",
+    "dummy_variables",
     "age_covariate",
-    "education_covariate",
-    "education_reference_category",
     "reverse_scored_variables",
     "variables_imputed_by_random_forest"
   ),
@@ -418,11 +436,12 @@ imputation_settings <- data.frame(
     ntree_rf,
     outcome,
     "((AF1_h + AF3_h + AF5_h) * 5 + (AF2_h + AF4_h + AF6_h) * 2) / 7",
-    exposure,
-    age_cov,
     education,
-    edu_ref,
-    paste(exposure, age_cov, sep = ", "),
+    "mother_education_6grp already coded as 0, 1, 2",
+    "mother_education_6grp == 0",
+    "education_group1, education_group2",
+    age_cov,
+    age_cov,
     paste(vars_with_missing, collapse = ", ")
   )
 )
