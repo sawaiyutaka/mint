@@ -31,7 +31,7 @@ target_columns = (
         "WHO5_all_100_1m",
         "WHO5_all_100_6m",
         "WHO5_all_100_12m",
-        "WHO5_all_100_12m",
+        "WHO5_all_100_18m",
         "EPDS_1m",
         "EPDS_6m",
         "EPDS_12m",
