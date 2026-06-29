@@ -11,32 +11,24 @@ files = {
     "d": r"D:/mint/data_xlsx/d.xlsx",
 }
 
+output_file = r"D:/mint/data_xlsx/merged_selected_age_corrected_24.xlsx"
+
 # =========================
 # 2. 抽出したい列名
 # =========================
+g_timepoints = ["P1", "P2", "1m", "6m", "12m", "18m"]
+
 target_columns = (
     ["users_id"] +
 
-    [f"G{i}_P1" for i in range(1, 6)] +
-    [f"G{i}_P2" for i in range(1, 6)] +
-    [f"G{i}_1m" for i in range(1, 6)] +
-    [f"G{i}_6m" for i in range(1, 6)] +
-    [f"G{i}_12m" for i in range(1, 6)] +
-    [f"G{i}_18m" for i in range(1, 6)] +
+    [f"G{i}_{tp}" for tp in g_timepoints for i in range(1, 6)] +
     [f"G{i}" for i in range(1, 6)] +
     [f"D{i}" for i in range(1, 6)] +
 
+    [f"WHO5_all_100_{tp}" for tp in g_timepoints] +
+    [f"EPDS_{tp}" for tp in ["1m", "6m", "12m", "18m"]] +
+
     [
-        "WHO5_all_100_P1",
-        "WHO5_all_100_P2",
-        "WHO5_all_100_1m",
-        "WHO5_all_100_6m",
-        "WHO5_all_100_12m",
-        "WHO5_all_100_18m",
-        "EPDS_1m",
-        "EPDS_6m",
-        "EPDS_12m",
-        "EPDS_18m",
         "A13_P1",
         "age_corrected",
         "H4_P1",
@@ -80,11 +72,15 @@ def normalize_users_id(x):
 
     x = str(x).strip()
 
+    if x == "":
+        return pd.NA
+
     # Excelで数値として読まれた 123.0 を 123 にする
     if re.fullmatch(r"\d+\.0", x):
         x = x[:-2]
 
     return x
+
 
 # =========================
 # 4. Excelの読み込み関数
@@ -99,7 +95,6 @@ def read_excel_clean(path):
     if "users_id" not in df.columns:
         raise ValueError(f"{path} に users_id 列がありません。")
 
-    # users_idを正規化
     df["users_id"] = df["users_id"].apply(normalize_users_id)
 
     # users_id が空の行は除外
@@ -107,56 +102,63 @@ def read_excel_clean(path):
 
     return df
 
-a = read_excel_clean(files["a"])
-b = read_excel_clean(files["b"])
-c = read_excel_clean(files["c"])
-d = read_excel_clean(files["d"])
+
+data = {name: read_excel_clean(path) for name, path in files.items()}
+
+a = data["a"]
+b = data["b"]
+c = data["c"]
+d = data["d"]
 
 # =========================
 # 5. a.xlsx と b.xlsx を縦方向に結合
 # =========================
+a = a.copy()
+b = b.copy()
+
 a["_source_file"] = "a"
 b["_source_file"] = "b"
 
-ab = pd.concat(
-    [a, b],
-    axis=0,
-    ignore_index=True
-)
+ab = pd.concat([a, b], axis=0, ignore_index=True)
 
 # =========================
-# 6. c.xlsx に含まれる users_id のみに絞る前の確認
+# 6. d.xlsx に含まれる users_id のみに絞る前の確認
 # =========================
-c_ids = set(c["users_id"].dropna().unique())
 a_ids = set(a["users_id"].dropna().unique())
 b_ids = set(b["users_id"].dropna().unique())
+c_ids = set(c["users_id"].dropna().unique())
+d_ids = set(d["users_id"].dropna().unique())
+ab_ids = set(ab["users_id"].dropna().unique())
 
 print("===== ID確認 =====")
 print(f"a.xlsx のID数: {len(a_ids)}")
 print(f"b.xlsx のID数: {len(b_ids)}")
 print(f"c.xlsx のID数: {len(c_ids)}")
-print(f"a ∩ c のID数: {len(a_ids & c_ids)}")
-print(f"b ∩ c のID数: {len(b_ids & c_ids)}")
-print(f"a ∪ b のID数: {len(set(ab['users_id']))}")
-print(f"(a ∪ b) ∩ c のID数: {len(set(ab['users_id']) & c_ids)}")
+print(f"d.xlsx のID数: {len(d_ids)}")
+print(f"a ∩ d のID数: {len(a_ids & d_ids)}")
+print(f"b ∩ d のID数: {len(b_ids & d_ids)}")
+print(f"c ∩ d のID数: {len(c_ids & d_ids)}")
+print(f"a ∪ b のID数: {len(ab_ids)}")
+print(f"(a ∪ b) ∩ d のID数: {len(ab_ids & d_ids)}")
 
-# bにあるがcにないIDの例
-b_not_in_c = sorted(list(b_ids - c_ids))
-if len(b_not_in_c) > 0:
-    print("b.xlsxにはあるがc.xlsxにはないusers_idの例:")
-    print(b_not_in_c[:20])
+# bにあるがdにないIDの例
+b_not_in_d = sorted(b_ids - d_ids)
+
+if b_not_in_d:
+    print("b.xlsxにはあるがd.xlsxにはないusers_idの例:")
+    print(b_not_in_d[:20])
 
 # a+b後の重複確認
-duplicated_ab_ids = ab[ab["users_id"].duplicated()]["users_id"].unique()
+duplicated_ab_ids = ab.loc[ab["users_id"].duplicated(), "users_id"].unique()
 
 if len(duplicated_ab_ids) > 0:
     print("警告: a.xlsx と b.xlsx を縦結合した後に重複 users_id があります。")
     print("例:", duplicated_ab_ids[:10])
 
 # =========================
-# 7. c.xlsx に含まれる users_id のみに絞る
+# 7. d.xlsx に含まれる users_id のみに絞る
 # =========================
-base_ids = c[["users_id"]].drop_duplicates()
+base_ids = d[["users_id"]].drop_duplicates()
 
 merged = base_ids.merge(
     ab,
@@ -164,7 +166,7 @@ merged = base_ids.merge(
     how="left"
 )
 
-print("===== c基準でab結合後 =====")
+print("===== d基準でab結合後 =====")
 print(merged["_source_file"].value_counts(dropna=False))
 
 # =========================
@@ -185,121 +187,72 @@ merged = merged.merge(
 )
 
 # =========================
-# 9. 必要な列だけ抽出
+# 9. 母・父の最終学歴グループを作成
 # =========================
-
-# =========================
-# 母の最終学歴グループを作成
-# =========================
-
 def is_checked(value):
     """
     チェックボックス型の回答を判定する関数。
-    Excel上で 1, "1", True, "TRUE", "○" などの場合にチェックありとみなす。
-    必要に応じて条件は調整してください。
+    Excel上で 1, "1", "1.0" の場合にチェックありとみなす。
     """
     if pd.isna(value):
         return False
 
-    value = str(value).strip()
-
-    return value in ["1", "1.0"]
+    return str(value).strip() in ["1", "1.0"]
 
 
-def classify_mother_education(row):
+def classify_education(row, prefix):
     """
-    母の最終学歴を6グループに分類する。
-   スコア:
-      2 = 小学校卒
-      2 = 中学校卒
-      2 = 高校卒
-      1 = 短大・専門学校卒
-      0 = 4年制大学卒
-      0 = 大学院・6年制大学卒
+    最終学歴を3グループに分類する。
 
+    0 = 4年制大学卒、大学院・6年制大学卒
+    1 = 短大・専門学校卒
+    2 = 小学校卒、中学校卒、高校卒
     """
 
-    # 5: 大学院・6年制大学卒
-    if is_checked(row.get("I12_7_P1")):
+    # 大学院・6年制大学卒
+    if is_checked(row.get(f"{prefix}_7_P1")):
         return 0
 
-    # 4: 大卒
-    if is_checked(row.get("I12_6_P1")):
+    # 4年制大学卒
+    if is_checked(row.get(f"{prefix}_6_P1")):
         return 0
 
-    # 3: 短大・専門学校卒
-    if is_checked(row.get("I12_4_P1")) or is_checked(row.get("I12_5_P1")):
+    # 短大・専門学校卒
+    if is_checked(row.get(f"{prefix}_4_P1")) or is_checked(row.get(f"{prefix}_5_P1")):
         return 1
 
-    # 2: 高卒
-    if is_checked(row.get("I12_3_P1")):
+    # 高校卒・中学校卒・小学校卒
+    if (
+        is_checked(row.get(f"{prefix}_3_P1")) or
+        is_checked(row.get(f"{prefix}_2_P1")) or
+        is_checked(row.get(f"{prefix}_1_P1"))
+    ):
         return 2
 
-    # 1: 中卒
-    if is_checked(row.get("I12_2_P1")):
-        return 2
-
-    # 小学校卒業
-    if is_checked(row.get("I12_1_P1")):
-        return 2
-
-    # どれにも該当しない場合
     return pd.NA
 
 
-merged["mother_education_6grp"] = merged.apply(classify_mother_education, axis=1)
+merged["mother_education_6grp"] = merged.apply(
+    classify_education,
+    axis=1,
+    prefix="I12"
+)
 
-print("===== 母の最終学歴 6分類 =====")
+merged["father_education_6grp"] = merged.apply(
+    classify_education,
+    axis=1,
+    prefix="I22"
+)
+
+print("===== 母の最終学歴分類 =====")
 print(merged["mother_education_6grp"].value_counts(dropna=False))
 
-
-def classify_father_education(row):
-    """
-    父の最終学歴を6グループに分類する。
-   スコア:
-      2 = 小学校卒
-      2 = 中学校卒
-      2 = 高校卒
-      1 = 短大・専門学校卒
-      0 = 4年制大学卒
-      0 = 大学院・6年制大学卒
-
-    """
-
-    # 5: 大学院・6年制大学卒
-    if is_checked(row.get("I22_7_P1")):
-        return 0
-
-    # 4: 大卒
-    if is_checked(row.get("I22_6_P1")):
-        return 0
-
-    # 3: 短大・専門学校卒
-    if is_checked(row.get("I22_4_P1")) or is_checked(row.get("I22_5_P1")):
-        return 1
-
-    # 2: 高卒
-    if is_checked(row.get("I22_3_P1")):
-        return 2
-
-    # 1: 中卒
-    if is_checked(row.get("I22_2_P1")):
-        return 2
-
-    # 小学校卒業
-    if is_checked(row.get("I22_1_P1")):
-        return 2
-
-    # どれにも該当しない場合
-    return pd.NA
-
-
-merged["father_education_6grp"] = merged.apply(classify_father_education, axis=1)
-
-print("===== 父の最終学歴 6分類 =====")
+print("===== 父の最終学歴分類 =====")
 print(merged["father_education_6grp"].value_counts(dropna=False))
 
-
+# =========================
+# 10. 必要な列だけ抽出
+# =========================
 existing_columns = [col for col in target_columns if col in merged.columns]
 missing_columns = [col for col in target_columns if col not in merged.columns]
 
@@ -308,13 +261,13 @@ if missing_columns:
     for col in missing_columns:
         print(f"  - {col}")
 
-result = merged[existing_columns]
+result = merged[existing_columns].copy()
 
 # =========================
-# 10. 保存
+# 11. 保存
 # =========================
-result.to_excel(r"D:/mint/data_xlsx/merged_selected_age_corrected.xlsx", index=False)
+result.to_excel(output_file, index=False)
 
-print("完了: merged_selected.xlsx を作成しました")
+print(f"完了: {output_file} を作成しました")
 print(f"出力行数: {len(result)}")
 print(f"出力列数: {len(result.columns)}")
