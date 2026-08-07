@@ -11,7 +11,7 @@ files = {
     "d": r"D:/mint/data_xlsx/d.xlsx",
 }
 
-output_file = r"D:/mint/data_xlsx/merged_selected_age_corrected_24.xlsx"
+output_file = r"D:/mint/data_xlsx/merged_selected_age_corrected_24_language.xlsx"
 
 # =========================
 # 2. 抽出したい列名
@@ -24,6 +24,7 @@ target_columns = (
     [f"G{i}_{tp}" for tp in g_timepoints for i in range(1, 6)] +
     [f"G{i}" for i in range(1, 6)] +
     [f"D{i}" for i in range(1, 6)] +
+    [f"R{i}" for i in range(1, 7)] +
 
     [f"WHO5_all_100_{tp}" for tp in g_timepoints] +
     [f"EPDS_{tp}" for tp in ["1m", "6m", "12m", "18m"]] +
