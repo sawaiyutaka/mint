@@ -28,11 +28,14 @@ target_columns = (
 
     [f"WHO5_all_100_{tp}" for tp in g_timepoints] +
     [f"EPDS_{tp}" for tp in ["1m", "6m", "12m", "18m"]] +
+    [f"E1_{tp}" for tp in ["1m", "6m", "12m", "18m"]] +
 
     [
         "A13_P1",
         "age_corrected",
         "H4_P1",
+        "C4-4",
+        "C4-6",
     ] +
 
     [f"I11_{i}_P1" for i in range(1, 8)] +

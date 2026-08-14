@@ -3,7 +3,7 @@ import pandas as pd
 # =========================
 # 1. ファイル読み込み
 # =========================
-input_file = r"D:/mint/data_xlsx/merged_selected_age_corrected.xlsx"
+input_file = r"D:/mint/data_xlsx/merged_selected_age_corrected_24_language.xlsx"
 
 df = pd.read_excel(input_file)
 
@@ -35,6 +35,12 @@ continuous_columns = (
         "EPDS_6m",
         "EPDS_12m",
         "EPDS_18m",
+    ] +
+    [
+        "E1_1m",
+        "E1_6m",
+        "E1_12m",
+        "E1_18m",
     ]
 )
 
@@ -44,6 +50,8 @@ categorical_columns = [
     "father_education_6grp",
     "AF3",
     "AF4",
+    "C4-4",
+    "C4-6",
 ]
 
 # =========================
