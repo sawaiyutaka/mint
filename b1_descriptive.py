@@ -3,7 +3,7 @@ import pandas as pd
 # =========================
 # 1. ファイル読み込み
 # =========================
-input_file = r"D:/mint/data_xlsx/merged_selected_age_corrected_24_language.xlsx"
+input_file = r"D:/mint/data_xlsx/merged_early_control.xlsx"
 
 df = pd.read_excel(input_file)
 
@@ -152,7 +152,7 @@ print(categorical_summary)
 # 5. Excelに保存
 # =========================
 
-output_file = r"D:/mint/results/descriptive_statistics.xlsx"
+output_file = r"D:/mint/results/descriptive_early_control.xlsx"
 
 with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
     continuous_summary_rounded.to_excel(
