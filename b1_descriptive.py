@@ -58,6 +58,7 @@ categorical_columns = [
     "PC4",
     "PC5",
     "PC6",
+    "E1",
 ]
 
 # =========================
@@ -158,7 +159,7 @@ print(categorical_summary)
 # 5. Excelに保存
 # =========================
 
-output_file = r"D:/mint/results/descriptive_early_control.xlsx"
+output_file = r"D:/mint/results/descriptive_ipv_ssq.xlsx"
 
 with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
     continuous_summary_rounded.to_excel(

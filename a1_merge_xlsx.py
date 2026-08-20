@@ -66,6 +66,7 @@ target_columns = (
         "PC4",
         "PC5",
         "PC6",
+        "E1",
     ]
 )
 
