@@ -3,7 +3,7 @@ import pandas as pd
 # =========================
 # 1. ファイル読み込み
 # =========================
-input_file = r"D:/mint/data_xlsx/merged_early_control.xlsx"
+input_file = r"D:/mint/data_xlsx/merged_ipv.xlsx"
 
 df = pd.read_excel(input_file)
 
@@ -52,6 +52,12 @@ categorical_columns = [
     "AF4",
     "C4-4",
     "C4-6",
+    "PC1",
+    "PC2",
+    "PC3",
+    "PC4",
+    "PC5",
+    "PC6",
 ]
 
 # =========================

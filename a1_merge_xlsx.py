@@ -6,12 +6,12 @@ import re
 # =========================
 files = {
     "a": r"D:/mint/data_xlsx/a.xlsx",
-    "b": r"D:/mint/20260526共有用_MINT/20260526共有用/P1,P2,1m,6m,12m_control_data/20241212_control_P1-12m_U25_Pilot_excluded_N=158.xlsx",  # r"D:/mint/data_xlsx/b.xlsx",
+    "b": r"D:/mint/data_xlsx/b.xlsx",  # r"D:/mint/data_xlsx/b.xlsx",
     "c": r"D:/mint/data_xlsx/c.xlsx",
     "d": r"D:/mint/data_xlsx/d.xlsx",
 }
 
-output_file = r"D:/mint/data_xlsx/merged_early_control.xlsx"
+output_file = r"D:/mint/data_xlsx/merged_ipv.xlsx"
 
 # =========================
 # 2. 抽出したい列名
@@ -57,6 +57,15 @@ target_columns = (
         "AF2",
         "AF5",
         "AF6",
+    ] +
+
+    [
+        "PC1",
+        "PC2",
+        "PC3",
+        "PC4",
+        "PC5",
+        "PC6",
     ]
 )
 
