@@ -19,7 +19,7 @@ output_file = r"D:/mint/data_xlsx/merged_screen_tte.xlsx"
 g_timepoints = ["P1", "P2", "1m", "6m", "12m", "18m"]
 
 target_columns = (
-    ["users_id"] +
+    ["users_id", "intervention"] +
 
     [f"G{i}_{tp}" for tp in g_timepoints for i in range(1, 6)] +
     [f"G{i}" for i in range(1, 6)] +
