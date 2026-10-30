@@ -6,12 +6,12 @@ import re
 # =========================
 files = {
     "a": r"D:/mint/data_xlsx/a.xlsx",
-    "b": r"D:/mint/data_xlsx/b.xlsx",  # r"D:/mint/data_xlsx/b.xlsx",
+    "b": r"D:/mint/data_xlsx/b_158_control.xlsx",  # r"D:/mint/data_xlsx/b.xlsx"
     "c": r"D:/mint/data_xlsx/c.xlsx",
     "d": r"D:/mint/data_xlsx/d.xlsx",
 }
 
-output_file = r"D:/mint/data_xlsx/merged_ipv.xlsx"
+output_file = r"D:/mint/data_xlsx/merged_screen_tte.xlsx"
 
 # =========================
 # 2. 抽出したい列名
@@ -135,8 +135,9 @@ b["_source_file"] = "b"
 
 ab = pd.concat([a, b], axis=0, ignore_index=True)
 
+
 # =========================
-# 6. d.xlsx に含まれる users_id のみに絞る前の確認
+# 6. IDの確認
 # =========================
 a_ids = set(a["users_id"].dropna().unique())
 b_ids = set(b["users_id"].dropna().unique())
@@ -149,43 +150,34 @@ print(f"a.xlsx のID数: {len(a_ids)}")
 print(f"b.xlsx のID数: {len(b_ids)}")
 print(f"c.xlsx のID数: {len(c_ids)}")
 print(f"d.xlsx のID数: {len(d_ids)}")
-print(f"a ∩ d のID数: {len(a_ids & d_ids)}")
-print(f"b ∩ d のID数: {len(b_ids & d_ids)}")
-print(f"c ∩ d のID数: {len(c_ids & d_ids)}")
 print(f"a ∪ b のID数: {len(ab_ids)}")
+print(f"(a ∪ b) ∩ c のID数: {len(ab_ids & c_ids)}")
 print(f"(a ∪ b) ∩ d のID数: {len(ab_ids & d_ids)}")
 
-# bにあるがdにないIDの例
-b_not_in_d = sorted(b_ids - d_ids)
-
-if b_not_in_d:
-    print("b.xlsxにはあるがd.xlsxにはないusers_idの例:")
-    print(b_not_in_d[:20])
-
 # a+b後の重複確認
-duplicated_ab_ids = ab.loc[ab["users_id"].duplicated(), "users_id"].unique()
+duplicated_ab_ids = ab.loc[
+    ab["users_id"].duplicated(),
+    "users_id"
+].unique()
 
 if len(duplicated_ab_ids) > 0:
-    print("警告: a.xlsx と b.xlsx を縦結合した後に重複 users_id があります。")
+    print("警告: a+bで重複users_idがあります。")
     print("例:", duplicated_ab_ids[:10])
 
 # =========================
-# 7. d.xlsx に含まれる users_id のみに絞る
+# 7. a+bを基準データとする
 # =========================
-base_ids = d[["users_id"]].drop_duplicates()
+merged = ab.copy()
 
-merged = base_ids.merge(
-    ab,
-    on="users_id",
-    how="left"
-)
-
-print("===== d基準でab結合後 =====")
-print(merged["_source_file"].value_counts(dropna=False))
+print("===== a+bを基準としたデータ =====")
+print(f"行数: {len(merged)}")
+print(f"ユニークID数: {merged['users_id'].nunique()}")
 
 # =========================
-# 8. c.xlsx, d.xlsx を横方向に結合
+# 8. c.xlsx, d.xlsxを横方向に結合
 # =========================
+
+# c.xlsxを結合
 merged = merged.merge(
     c,
     on="users_id",
@@ -193,12 +185,25 @@ merged = merged.merge(
     suffixes=("", "_c")
 )
 
+print("===== c結合後 =====")
+print(f"行数: {len(merged)}")
+
+# d.xlsxを結合
 merged = merged.merge(
     d,
     on="users_id",
     how="left",
     suffixes=("", "_d")
 )
+
+print("===== d結合後 =====")
+print(f"行数: {len(merged)}")
+print(f"ユニークID数: {merged['users_id'].nunique()}")
+
+# 基準データに含まれないIDが追加されていないか確認
+assert set(merged["users_id"]) == ab_ids, \
+    "結合後のIDがa+bのIDと一致しません。"
+
 
 # =========================
 # 9. 母・父の最終学歴グループを作成
