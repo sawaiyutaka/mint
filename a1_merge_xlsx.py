@@ -124,16 +124,24 @@ b = data["b"]
 c = data["c"]
 d = data["d"]
 
+
 # =========================
 # 5. a.xlsx と b.xlsx を縦方向に結合
 # =========================
 a = a.copy()
 b = b.copy()
 
+# interventionの定義
+# 1 = Intervention（a.xlsx）
+# 0 = Control（b.xlsx）
+a["intervention"] = 1
+b["intervention"] = 0
+
 a["_source_file"] = "a"
 b["_source_file"] = "b"
 
 ab = pd.concat([a, b], axis=0, ignore_index=True)
+
 
 
 # =========================
