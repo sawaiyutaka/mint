@@ -1,5 +1,6 @@
 # ============================================================
-# Screen time at 24 months and maternal/family factors
+# Screen time at 24 months and maternal/family factors,
+# including WAST-Short-J at three time points
 # Multiple imputation + unadjusted regression analyses
 #
 # Outcomes
@@ -13,6 +14,12 @@
 #   2) H4_P1:               0 = >=5, 1 = 1-4 (low income)
 #   3) EPDS at 1/6/12/18m: 0 = <=8, 1 = >=9
 #   4) E1 at 1/6/12/18m:   0 = 3-6, 1 = 1-2 (isolated)
+#   5) WAST-Short-J:
+#      - Pregnancy:         PC1 + PC2
+#      - Immediately postpartum: PC3 + PC4
+#      - 24 months:         PC5 + PC6
+#      - Reversed total score: 2-6 (higher = greater IPV risk)
+#      - Binary exposure:   0 = total score 2, 1 = total score >=3
 #
 # Multiple imputation
 #   mice, random forest, m = 20, ntree = 100
@@ -36,11 +43,11 @@ library(geepack)
 # 1. File settings
 # ============================================================
 
-input_file <- "D:/mint/data_xlsx/merged_selected_age_corrected_24_language.xlsx"
+input_file <- "D:/mint/data_xlsx/merged_ipv.xlsx"
 
 output_file <- paste0(
   "D:/mint/results/",
-  "screen_time_maternal_factors_MI_unadjusted.xlsx"
+  "screen_time_maternal_factors_WAST_MI_unadjusted.xlsx"
 )
 
 dir.create(
@@ -82,6 +89,34 @@ support_vars <- c(
 
 education <- "mother_education_6grp"
 
+wast_vars <- paste0("PC", 1:6)
+
+wast_timepoints <- data.frame(
+  timepoint = c(
+    "pregnancy",
+    "postpartum",
+    "24m"
+  ),
+  item1 = c("PC1", "PC3", "PC5"),
+  item2 = c("PC2", "PC4", "PC6"),
+  score_var = c(
+    "WAST_pregnancy",
+    "WAST_postpartum",
+    "WAST_24m"
+  ),
+  positive_var = c(
+    "WAST_pregnancy_positive",
+    "WAST_postpartum_positive",
+    "WAST_24m_positive"
+  ),
+  label = c(
+    "WAST-Short-J positive during pregnancy",
+    "WAST-Short-J positive immediately postpartum",
+    "WAST-Short-J positive at 24 months"
+  ),
+  stringsAsFactors = FALSE
+)
+
 required_columns <- c(
   id_var,
   af_vars,
@@ -89,6 +124,7 @@ required_columns <- c(
   income_raw,
   epds_vars,
   support_vars,
+  wast_vars,
   education
 )
 
@@ -155,6 +191,73 @@ to_hours <- function(x) {
   )
 }
 
+
+factor_to_numeric <- function(x) {
+  if (is.factor(x)) {
+    return(
+      as.numeric(
+        as.character(x)
+      )
+    )
+  }
+  
+  as.numeric(x)
+}
+
+
+derive_wast_variables <- function(d) {
+  
+  # Original WAST-Short-J responses:
+  #   1 = a lot of tension / great difficulty
+  #   2 = some tension / some difficulty
+  #   3 = no tension / no difficulty
+  #
+  # Reversed item score:
+  #   1 -> 3, 2 -> 2, 3 -> 1
+  #
+  # Total score:
+  #   2-6; higher scores indicate greater IPV risk.
+  #
+  # Positive screen:
+  #   0 = total score 2
+  #   1 = total score >=3
+  #
+  # If either item is missing, the total score and binary
+  # classification for that time point are set to missing.
+  
+  for (v in wast_vars) {
+    x <- factor_to_numeric(d[[v]])
+    x[!is.na(x) & !(x %in% 1:3)] <- NA_real_
+    d[[v]] <- x
+    d[[paste0(v, "_rev")]] <- ifelse(
+      is.na(x),
+      NA_real_,
+      4 - x
+    )
+  }
+  
+  for (i in seq_len(nrow(wast_timepoints))) {
+    item1_rev <- paste0(wast_timepoints$item1[i], "_rev")
+    item2_rev <- paste0(wast_timepoints$item2[i], "_rev")
+    score_var <- wast_timepoints$score_var[i]
+    positive_var <- wast_timepoints$positive_var[i]
+    
+    d[[score_var]] <- ifelse(
+      is.na(d[[item1_rev]]) | is.na(d[[item2_rev]]),
+      NA_real_,
+      d[[item1_rev]] + d[[item2_rev]]
+    )
+    
+    d[[positive_var]] <- ifelse(
+      is.na(d[[score_var]]),
+      NA_integer_,
+      ifelse(d[[score_var]] >= 3, 1L, 0L)
+    )
+  }
+  
+  d
+}
+
 df <- as.data.frame(df_raw)
 
 df[af_vars] <- lapply(
@@ -186,7 +289,14 @@ df[[outcome_cont]] <- ifelse(
 
 
 # ============================================================
-# 5. Screen-time summary before imputation
+# 5. Construct WAST-Short-J scores before imputation
+# ============================================================
+
+df <- derive_wast_variables(df)
+
+
+# ============================================================
+# 6. Descriptive statistics before imputation
 # ============================================================
 
 screen_summary <- data.frame(
@@ -239,8 +349,178 @@ screen_summary <- data.frame(
 print(screen_summary)
 
 
+# ------------------------------------------------------------
+# WAST-Short-J item-level response distributions
+# Percentages use all participants as the denominator.
+# ------------------------------------------------------------
+
+wast_item_summary <- bind_rows(
+  lapply(
+    wast_vars,
+    function(v) {
+      x <- df[[v]]
+      counts <- c(
+        sum(x == 1, na.rm = TRUE),
+        sum(x == 2, na.rm = TRUE),
+        sum(x == 3, na.rm = TRUE),
+        sum(is.na(x))
+      )
+      
+      data.frame(
+        item = v,
+        response = c(
+          "1: A lot of tension / great difficulty",
+          "2: Some tension / some difficulty",
+          "3: No tension / no difficulty",
+          "Missing"
+        ),
+        n = counts,
+        percent_of_total = round(
+          counts / nrow(df) * 100,
+          1
+        ),
+        stringsAsFactors = FALSE
+      )
+    }
+  )
+)
+
+
+# ------------------------------------------------------------
+# WAST-Short-J total-score descriptive statistics
+# ------------------------------------------------------------
+
+wast_score_summary <- bind_rows(
+  lapply(
+    seq_len(nrow(wast_timepoints)),
+    function(i) {
+      v <- wast_timepoints$score_var[i]
+      x <- df[[v]]
+      n_observed <- sum(!is.na(x))
+      
+      data.frame(
+        timepoint = wast_timepoints$timepoint[i],
+        variable = v,
+        n_total = length(x),
+        n_observed = n_observed,
+        n_missing = sum(is.na(x)),
+        mean = ifelse(
+          n_observed > 0,
+          mean(x, na.rm = TRUE),
+          NA_real_
+        ),
+        sd = ifelse(
+          n_observed > 1,
+          sd(x, na.rm = TRUE),
+          NA_real_
+        ),
+        median = ifelse(
+          n_observed > 0,
+          median(x, na.rm = TRUE),
+          NA_real_
+        ),
+        min = ifelse(
+          n_observed > 0,
+          min(x, na.rm = TRUE),
+          NA_real_
+        ),
+        max = ifelse(
+          n_observed > 0,
+          max(x, na.rm = TRUE),
+          NA_real_
+        ),
+        stringsAsFactors = FALSE
+      )
+    }
+  )
+) %>%
+  mutate(
+    across(
+      c(mean, sd, median, min, max),
+      ~ round(.x, 2)
+    )
+  )
+
+
+# ------------------------------------------------------------
+# WAST-Short-J score distributions (2-6 points and missing)
+# ------------------------------------------------------------
+
+wast_score_distribution <- bind_rows(
+  lapply(
+    seq_len(nrow(wast_timepoints)),
+    function(i) {
+      v <- wast_timepoints$score_var[i]
+      x <- df[[v]]
+      counts <- c(
+        sapply(2:6, function(score) sum(x == score, na.rm = TRUE)),
+        sum(is.na(x))
+      )
+      
+      data.frame(
+        timepoint = wast_timepoints$timepoint[i],
+        variable = v,
+        score = c(as.character(2:6), "Missing"),
+        n = counts,
+        percent_of_total = round(
+          counts / length(x) * 100,
+          1
+        ),
+        stringsAsFactors = FALSE
+      )
+    }
+  )
+)
+
+
+# ------------------------------------------------------------
+# WAST-Short-J screening-positive prevalence
+# Percentage positive uses observed cases as the denominator.
+# ------------------------------------------------------------
+
+wast_positive_summary <- bind_rows(
+  lapply(
+    seq_len(nrow(wast_timepoints)),
+    function(i) {
+      v <- wast_timepoints$positive_var[i]
+      x <- df[[v]]
+      n_observed <- sum(!is.na(x))
+      n_positive <- sum(x == 1, na.rm = TRUE)
+      
+      data.frame(
+        timepoint = wast_timepoints$timepoint[i],
+        variable = v,
+        n_total = length(x),
+        n_observed = n_observed,
+        n_missing = sum(is.na(x)),
+        n_negative = sum(x == 0, na.rm = TRUE),
+        n_positive = n_positive,
+        percent_positive = ifelse(
+          n_observed > 0,
+          round(n_positive / n_observed * 100, 1),
+          NA_real_
+        ),
+        stringsAsFactors = FALSE
+      )
+    }
+  )
+)
+
+cat("\nWAST-Short-J item response distributions:\n")
+print(wast_item_summary)
+
+cat("\nWAST-Short-J total-score summary:\n")
+print(wast_score_summary)
+
+cat("\nWAST-Short-J total-score distributions:\n")
+print(wast_score_distribution)
+
+cat("\nWAST-Short-J positive-screen prevalence:\n")
+print(wast_positive_summary)
+
+
 # ============================================================
-# 6. Dataset for multiple imputation
+# 7. Dataset for multiple imputation
 # ============================================================
 
 # All requested raw exposure variables are included jointly
@@ -256,6 +536,7 @@ analysis_columns <- c(
   income_raw,
   epds_vars,
   support_vars,
+  wast_vars,
   education
 )
 
@@ -291,7 +572,7 @@ cat(
 
 
 # ============================================================
-# 7. Variable types for imputation
+# 8. Variable types for imputation
 # ============================================================
 
 dat[[outcome_cont]] <- as.numeric(
@@ -323,13 +604,20 @@ for (v in support_vars) {
   )
 }
 
+for (v in wast_vars) {
+  dat[[v]] <- factor(
+    dat[[v]],
+    levels = 1:3
+  )
+}
+
 dat[[education]] <- factor(
   dat[[education]]
 )
 
 
 # ============================================================
-# 8. Missing-value summary before imputation
+# 9. Missing-value summary before imputation
 # ============================================================
 
 missing_summary <- data.frame(
@@ -350,7 +638,7 @@ print(missing_summary)
 
 
 # ============================================================
-# 9. Multiple imputation using random forest
+# 10. Multiple imputation using random forest
 # ============================================================
 
 ini <- mice(
@@ -412,23 +700,16 @@ completed_list <- complete(
 
 
 # ============================================================
-# 10. Functions to derive binary exposures after imputation
+# 11. Derive analysis variables after imputation
 # ============================================================
-
-factor_to_numeric <- function(x) {
-  if (is.factor(x)) {
-    return(
-      as.numeric(
-        as.character(x)
-      )
-    )
-  }
-  
-  as.numeric(x)
-}
 
 
 derive_analysis_variables <- function(d) {
+  
+  # Derive WAST-Short-J reversed scores, totals, and
+  # binary screening classifications from imputed raw items.
+  
+  d <- derive_wast_variables(d)
   
   # ----------------------------------------------------------
   # Binary screen-time outcome
@@ -476,8 +757,8 @@ derive_analysis_variables <- function(d) {
   
   d$low_income <- dplyr::case_when(
     is.na(h4_num) ~ NA_real_,
-    h4_num >= 1 & h4_num <= 2 ~ 1,
-    h4_num >= 3 ~ 0,
+    h4_num >= 1 & h4_num <= 4 ~ 1,
+    h4_num >= 5 ~ 0,
     TRUE ~ NA_real_
   )
   
@@ -540,7 +821,7 @@ derive_analysis_variables <- function(d) {
 
 
 # ============================================================
-# 11. Exposure definitions
+# 12. Exposure definitions
 # ============================================================
 
 exposure_info <- data.frame(
@@ -549,7 +830,8 @@ exposure_info <- data.frame(
     "age_under25",
     "low_income",
     paste0(epds_vars, "_9plus"),
-    paste0(support_vars, "_isolated")
+    paste0(support_vars, "_isolated"),
+    wast_timepoints$positive_var
   ),
   
   exposure_label = c(
@@ -562,21 +844,24 @@ exposure_info <- data.frame(
     "Social isolation at 1 month postpartum (E1 = 1-2)",
     "Social isolation at 6 months postpartum (E1 = 1-2)",
     "Social isolation at 12 months postpartum (E1 = 1-2)",
-    "Social isolation at 18 months postpartum (E1 = 1-2)"
+    "Social isolation at 18 months postpartum (E1 = 1-2)",
+    wast_timepoints$label
   ),
   
   reference_group = c(
     "age_corrected >=25 years",
     "H4_P1 >=5",
     rep("EPDS <=8", 4),
-    rep("E1 = 3-6", 4)
+    rep("E1 = 3-6", 4),
+    rep("WAST-Short-J total score = 2 (negative)", 3)
   ),
   
   exposed_group = c(
     "age_corrected <25 years",
     "H4_P1 = 1-4",
     rep("EPDS >=9", 4),
-    rep("E1 = 1-2", 4)
+    rep("E1 = 1-2", 4),
+    rep("WAST-Short-J total score >=3 (positive)", 3)
   ),
   
   stringsAsFactors = FALSE
@@ -586,7 +871,7 @@ exposure_vars <- exposure_info$exposure
 
 
 # ============================================================
-# 12. Fit all unadjusted models in each imputed dataset
+# 13. Fit all unadjusted models in each imputed dataset
 # ============================================================
 
 linear_model_lists <- setNames(
@@ -728,7 +1013,7 @@ for (i in seq_along(completed_list)) {
 
 
 # ============================================================
-# 13. Pool linear regression results
+# 14. Pool linear regression results
 # ============================================================
 
 linear_results <- bind_rows(
@@ -787,7 +1072,7 @@ linear_results <- bind_rows(
 
 
 # ============================================================
-# 14. Pool robust Poisson regression results
+# 15. Pool robust Poisson regression results
 # ============================================================
 
 poisson_results <- bind_rows(
@@ -850,7 +1135,7 @@ poisson_results <- bind_rows(
 
 
 # ============================================================
-# 15. Summarize counts across imputations
+# 16. Summarize counts across imputations
 # ============================================================
 
 exposure_counts_MI <- bind_rows(
@@ -897,7 +1182,7 @@ outcome_counts_MI <- bind_rows(
 
 
 # ============================================================
-# 16. Model formulas and analysis information
+# 17. Model formulas and analysis information
 # ============================================================
 
 model_formulas <- bind_rows(
@@ -946,6 +1231,10 @@ model_information <- data.frame(
     "Random forest trees",
     "MICE iterations",
     "Imputation-only variable",
+    "WAST-Short-J raw items",
+    "WAST-Short-J total-score range",
+    "WAST-Short-J positive cut-off",
+    "WAST-Short-J missing-data rule",
     "Poisson robust SE method"
   ),
   
@@ -963,13 +1252,17 @@ model_information <- data.frame(
     as.character(ntree_rf),
     "20",
     "mother_education_6grp",
+    paste(wast_vars, collapse = ", "),
+    "2-6; higher scores indicate greater IPV risk",
+    "Total score >=3",
+    "If either item is missing, the total and binary classification are missing; raw items are imputed before derivation in MI analyses",
     "GEE sandwich SE (geeglm, std.err = san.se)"
   )
 )
 
 
 # ============================================================
-# 17. Print main results
+# 18. Print main results
 # ============================================================
 
 cat(
@@ -1007,7 +1300,7 @@ print(
 
 
 # ============================================================
-# 18. Save results to Excel
+# 19. Save results to Excel
 # ============================================================
 
 wb <- createWorkbook()
@@ -1080,6 +1373,62 @@ writeData(
   wb,
   "screen_summary",
   screen_summary
+)
+
+
+# WAST-Short-J item response distributions before imputation
+
+addWorksheet(
+  wb,
+  "WAST_item_summary"
+)
+
+writeData(
+  wb,
+  "WAST_item_summary",
+  wast_item_summary
+)
+
+
+# WAST-Short-J total-score summary before imputation
+
+addWorksheet(
+  wb,
+  "WAST_score_summary"
+)
+
+writeData(
+  wb,
+  "WAST_score_summary",
+  wast_score_summary
+)
+
+
+# WAST-Short-J total-score distributions before imputation
+
+addWorksheet(
+  wb,
+  "WAST_score_dist"
+)
+
+writeData(
+  wb,
+  "WAST_score_dist",
+  wast_score_distribution
+)
+
+
+# WAST-Short-J positive-screen prevalence before imputation
+
+addWorksheet(
+  wb,
+  "WAST_positive_summary"
+)
+
+writeData(
+  wb,
+  "WAST_positive_summary",
+  wast_positive_summary
 )
 
 
